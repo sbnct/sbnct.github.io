@@ -50,19 +50,30 @@ export function getInitials(name?: string | null): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+function getShareUrl(
+  parameter: 'photo' | 'collection' | 'user',
+  id: string
+): string {
+  const baseUrl = import.meta.env.BASE_URL;
+  const query = new URLSearchParams({ [parameter]: id });
+
+  if (typeof window === 'undefined') return `${baseUrl}?${query.toString()}`;
+
+  const url = new URL(baseUrl, window.location.origin);
+  url.searchParams.set(parameter, id);
+  return url.toString();
+}
+
 export function getPhotoShareUrl(photoId: string): string {
-  if (typeof window === 'undefined') return `/?photo=${encodeURIComponent(photoId)}`;
-  return `${window.location.origin}/?photo=${encodeURIComponent(photoId)}`;
+  return getShareUrl('photo', photoId);
 }
 
 export function getCollectionShareUrl(collectionId: string): string {
-  if (typeof window === 'undefined') return `/?collection=${encodeURIComponent(collectionId)}`;
-  return `${window.location.origin}/?collection=${encodeURIComponent(collectionId)}`;
+  return getShareUrl('collection', collectionId);
 }
 
 export function getProfileShareUrl(userId: string): string {
-  if (typeof window === 'undefined') return `/?user=${encodeURIComponent(userId)}`;
-  return `${window.location.origin}/?user=${encodeURIComponent(userId)}`;
+  return getShareUrl('user', userId);
 }
 
 export async function copyTextToClipboard(text: string): Promise<boolean> {
