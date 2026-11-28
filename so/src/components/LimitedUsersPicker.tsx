@@ -4,6 +4,9 @@ import { supabase } from '../lib/supabase';
 import { Profile } from '../types';
 import { getInitials } from '../lib/utils';
 import { VerifiedBadge } from './VerifiedBadge';
+import { useTypingPlaceholder } from '../hooks/useTypingPlaceholder';
+
+const USER_SEARCH_PLACEHOLDERS = ['alex', 'morgan', 'jordan'];
 
 type PickedUser = Pick<Profile, 'id' | 'name' | 'username' | 'avatar_url' | 'is_verified'>;
 
@@ -24,6 +27,7 @@ export const LimitedUsersPicker: React.FC<LimitedUsersPickerProps> = ({
   const [results, setResults] = useState<PickedUser[]>([]);
   const [searching, setSearching] = useState(false);
   const [knownProfiles, setKnownProfiles] = useState<Record<string, PickedUser>>({});
+  const searchPlaceholder = useTypingPlaceholder(query, USER_SEARCH_PLACEHOLDERS);
 
   // Resolve any selected IDs that are not yet cached locally
   useEffect(() => {
@@ -177,7 +181,7 @@ export const LimitedUsersPicker: React.FC<LimitedUsersPickerProps> = ({
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search @username..."
+          placeholder={searchPlaceholder}
           className="w-full min-h-[40px] pl-9 pr-8 py-2 rounded-xl bg-white border border-black/[0.1] focus:border-[#0A0A0A] outline-none text-base md:text-xs transition-colors"
         />
         {query && (

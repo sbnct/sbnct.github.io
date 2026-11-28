@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowDown, ArrowRight } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import { APP_VERSION, RoadmapModal } from './RoadmapModal';
+import { ResilientImage } from './ResilientImage';
 
 interface LandingViewProps {
   onGetStarted: () => void;
@@ -8,8 +10,15 @@ interface LandingViewProps {
   onExploreFeed: () => void;
 }
 
+interface LandingPhoto {
+  id: string;
+  title: string;
+  image_url: string;
+  profiles: { name: string; username: string } | null;
+}
+
 const HERO_WORDS = ['Simple.', 'Organised.', 'Free.'];
-const SECTION2_WORDS = ['In', 'StartOrigin,', 'you', 'can:'];
+const LANDING_PHOTO_COUNT = 3;
 
 export const LandingView: React.FC<LandingViewProps> = ({
   onGetStarted,
@@ -17,6 +26,11 @@ export const LandingView: React.FC<LandingViewProps> = ({
   onExploreFeed,
 }) => {
   const [heroReady, setHeroReady] = useState(false);
+  const [photosVisible, setPhotosVisible] = useState(false);
+  const [introComplete, setIntroComplete] = useState(false);
+  const [recentPhotos, setRecentPhotos] = useState<LandingPhoto[]>([]);
+  const [photosLoading, setPhotosLoading] = useState(true);
+  const [photosUnavailable, setPhotosUnavailable] = useState(false);
   const [capabilitiesVisible, setCapabilitiesVisible] = useState(false);
   const [ctaVisible, setCtaVisible] = useState(false);
   const [roadmapOpen, setRoadmapOpen] = useState(false);
@@ -25,18 +39,54 @@ export const LandingView: React.FC<LandingViewProps> = ({
   const ctaRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
+    let active = true;
+    const loadLatestPhotos = async () => {
+      const { data, error } = await supabase
+        .from('photos')
+        .select('id, title, image_url, profiles:user_id (name, username)')
+        .eq('privacy', 'public')
+        .order('created_at', { ascending: false })
+        .limit(LANDING_PHOTO_COUNT);
+
+      if (!active) return;
+      if (error) {
+        console.error('Failed to load landing photos:', error);
+        setPhotosUnavailable(true);
+      } else {
+        setRecentPhotos((data as LandingPhoto[]) || []);
+      }
+      setPhotosLoading(false);
+    };
+
+    loadLatestPhotos().catch((error: unknown) => {
+      if (!active) return;
+      console.error('Failed to load landing photos:', error);
+      setPhotosUnavailable(true);
+      setPhotosLoading(false);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
     const prefersReducedMotion =
       typeof window !== 'undefined' &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     if (prefersReducedMotion) {
       setHeroReady(true);
+      setPhotosVisible(true);
+      setIntroComplete(true);
       setCapabilitiesVisible(true);
       setCtaVisible(true);
       return;
     }
 
-    const timer = window.setTimeout(() => setHeroReady(true), 80);
+    const heroTimer = window.setTimeout(() => setHeroReady(true), 80);
+    const photosTimer = window.setTimeout(() => setPhotosVisible(true), 700);
+    const completeTimer = window.setTimeout(() => setIntroComplete(true), 1900);
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -56,10 +106,30 @@ export const LandingView: React.FC<LandingViewProps> = ({
     if (ctaRef.current) observer.observe(ctaRef.current);
 
     return () => {
-      window.clearTimeout(timer);
+      window.clearTimeout(heroTimer);
+      window.clearTimeout(photosTimer);
+      window.clearTimeout(completeTimer);
       observer.disconnect();
     };
   }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const body = document.body;
+    const previousOverflowY = root.style.overflowY;
+    const previousBodyOverflowY = body.style.overflowY;
+    window.scrollTo({ top: 0 });
+
+    if (!introComplete) {
+      root.style.overflowY = 'hidden';
+      body.style.overflowY = 'hidden';
+    }
+
+    return () => {
+      root.style.overflowY = previousOverflowY;
+      body.style.overflowY = previousBodyOverflowY;
+    };
+  }, [introComplete]);
 
   const scrollToSection = (element: HTMLElement | null) => {
     if (!element) return;
@@ -68,11 +138,11 @@ export const LandingView: React.FC<LandingViewProps> = ({
 
   return (
     <div id="top" className="min-h-screen bg-white text-[#0A0A0A] flex flex-col">
-      {/* Screen 1: No top header — centered sequential reveal */}
+      {/* Screen 1: Intro and latest public photos */}
       <section className="relative min-h-[100dvh] flex flex-col items-center justify-between px-4 sm:px-6 py-10">
         <div aria-hidden="true" className="h-6" />
 
-        <div className="max-w-4xl mx-auto text-center space-y-10">
+        <div className="w-full max-w-4xl mx-auto text-center space-y-7 sm:space-y-8">
           <div className="space-y-5">
             <div
               className={`transition-all duration-700 ease-out ${
@@ -92,20 +162,20 @@ export const LandingView: React.FC<LandingViewProps> = ({
             </div>
 
             <h1 className="text-[clamp(2.75rem,8vw,6rem)] font-semibold tracking-tight leading-[1.04] text-[#0A0A0A] flex flex-wrap items-center justify-center gap-x-[0.28em] gap-y-2">
-            {HERO_WORDS.map((word, index) => (
-              <span
-                key={word}
-                style={{ transitionDelay: `${index * 260}ms` }}
-                className={`inline-block transition-all duration-700 ease-out ${
-                  heroReady
-                    ? 'opacity-100 translate-y-0'
-                    : 'opacity-0 translate-y-5'
-                }`}
-              >
-                {word}
-              </span>
-            ))}
-          </h1>
+              {HERO_WORDS.map((word, index) => (
+                <span
+                  key={word}
+                  style={{ transitionDelay: `${index * 260}ms` }}
+                  className={`inline-block transition-all duration-700 ease-out ${
+                    heroReady
+                      ? 'opacity-100 translate-y-0'
+                      : 'opacity-0 translate-y-5'
+                  }`}
+                >
+                  {word}
+                </span>
+              ))}
+            </h1>
           </div>
 
           <div
@@ -125,24 +195,85 @@ export const LandingView: React.FC<LandingViewProps> = ({
               <ArrowRight className="w-4 h-4" strokeWidth={1.75} />
             </button>
           </div>
+
+          <div
+            className={`transition-all duration-700 ease-out ${
+              photosVisible
+                ? 'opacity-100 translate-y-0'
+                : 'opacity-0 translate-y-5'
+            }`}
+          >
+            <p className="mb-3 text-xs font-medium uppercase tracking-[0.16em] text-[#737373]">
+              Latest photos
+            </p>
+            <div className="grid grid-cols-3 gap-2.5 sm:gap-4">
+              {Array.from({ length: LANDING_PHOTO_COUNT }, (_, index) => {
+                const photo = recentPhotos[index];
+                return (
+                  <button
+                    key={photo?.id || `latest-photo-${index}`}
+                    type="button"
+                    onClick={onExploreFeed}
+                    aria-label={
+                      photo
+                        ? `Explore ${photo.title} by ${photo.profiles?.name || 'a photographer'}`
+                        : 'Explore the public photo feed'
+                    }
+                    style={{ transitionDelay: `${index * 120}ms` }}
+                    className={`group relative aspect-[4/3] overflow-hidden rounded-2xl bg-[#F5F5F7] text-left transition-all duration-700 ease-out ${
+                      photosVisible
+                        ? 'opacity-100 translate-y-0'
+                        : 'opacity-0 translate-y-5'
+                    }`}
+                  >
+                    {photo ? (
+                      <>
+                        <ResilientImage
+                          src={photo.image_url}
+                          alt={photo.title}
+                          containerClassName="absolute inset-0"
+                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                        <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-3 pb-3 pt-8 text-left text-white">
+                          <span className="block truncate text-xs font-medium sm:text-sm">
+                            {photo.title}
+                          </span>
+                          <span className="mt-0.5 block truncate text-[10px] text-white/75 sm:text-xs">
+                            @{photo.profiles?.username || 'photographer'}
+                          </span>
+                        </span>
+                      </>
+                    ) : (
+                      <span className="absolute inset-0 flex items-center justify-center px-2 text-center text-xs text-[#737373]">
+                        {photosLoading
+                          ? 'Loading latest photos…'
+                          : photosUnavailable
+                            ? 'Photos are unavailable right now'
+                            : recentPhotos.length > 0
+                              ? 'More photos coming soon'
+                              : 'Be the first to share a photo'}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => scrollToSection(capabilitiesRef.current)}
-          style={{ transitionDelay: `${HERO_WORDS.length * 260 + 320}ms` }}
-          className={`inline-flex flex-col items-center gap-1.5 text-xs font-medium text-[#737373] hover:text-[#0A0A0A] transition-all duration-700 ease-out py-2 px-4 ${
-            heroReady
-              ? 'opacity-100 translate-y-0'
-              : 'opacity-0 translate-y-3'
-          }`}
-        >
-          <span>Scroll</span>
-          <ArrowDown className="w-4 h-4" strokeWidth={1.75} />
-        </button>
+        {introComplete && (
+          <button
+            type="button"
+            onClick={() => scrollToSection(capabilitiesRef.current)}
+            className="inline-flex flex-col items-center gap-1.5 text-xs font-medium text-[#737373] hover:text-[#0A0A0A] py-2 px-4"
+          >
+            <span>Scroll</span>
+            <ArrowDown className="w-4 h-4" strokeWidth={1.75} />
+          </button>
+        )}
       </section>
 
-      {/* Screen 2: In StartOrigin, you can: */}
+      {/* Screen 2: What StartOrigin does */}
       <section
         id="capabilities"
         ref={capabilitiesRef}
@@ -151,20 +282,8 @@ export const LandingView: React.FC<LandingViewProps> = ({
         <div aria-hidden="true" className="h-2" />
 
         <div className="w-full max-w-5xl mx-auto space-y-12">
-          <h2 className="text-[clamp(2rem,4.6vw,3.5rem)] font-semibold tracking-tight text-[#0A0A0A] text-center flex flex-wrap items-center justify-center gap-x-[0.26em] gap-y-1">
-            {SECTION2_WORDS.map((word, index) => (
-              <span
-                key={word}
-                style={{ transitionDelay: `${index * 180}ms` }}
-                className={`inline-block transition-all duration-700 ease-out ${
-                  capabilitiesVisible
-                    ? 'opacity-100 translate-y-0'
-                    : 'opacity-0 translate-y-4'
-                }`}
-              >
-                {word}
-              </span>
-            ))}
+          <h2 className="text-[clamp(2rem,4.6vw,3.5rem)] font-semibold tracking-tight text-[#0A0A0A] text-center">
+            StartOrigin is a tool to:
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6">

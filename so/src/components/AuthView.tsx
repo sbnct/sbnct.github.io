@@ -4,6 +4,16 @@ import { supabase } from '../lib/supabase';
 import { SwipeCaptcha } from './SwipeCaptcha';
 import { SlidingTabs } from './SlidingTabs';
 import { ModalPortal } from './ModalPortal';
+import { useTypingPlaceholder } from '../hooks/useTypingPlaceholder';
+
+const SIGN_IN_PLACEHOLDERS = ['alex', 'morgan', 'jordan'];
+const NAME_PLACEHOLDERS = ['Alex Morgan', 'Sam Taylor', 'Jordan Lee'];
+const USERNAME_PLACEHOLDERS = ['alexmorgan', 'samtaylor', 'jordanlee'];
+const EMAIL_PLACEHOLDERS = [
+  'alex@example.com',
+  'sam@example.com',
+  'jordan@example.com',
+];
 
 interface AuthViewProps {
   onSuccess: () => void;
@@ -31,6 +41,18 @@ export const AuthView: React.FC<AuthViewProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
+  const identifierPlaceholder = useTypingPlaceholder(
+    identifier,
+    SIGN_IN_PLACEHOLDERS,
+    mode === 'signin'
+  );
+  const namePlaceholder = useTypingPlaceholder(name, NAME_PLACEHOLDERS, mode === 'signup');
+  const usernamePlaceholder = useTypingPlaceholder(
+    username,
+    USERNAME_PLACEHOLDERS,
+    mode === 'signup'
+  );
+  const emailPlaceholder = useTypingPlaceholder(email, EMAIL_PLACEHOLDERS, mode === 'signup');
 
   const resetCaptcha = () => {
     setCaptchaVerified(false);
@@ -204,11 +226,13 @@ export const AuthView: React.FC<AuthViewProps> = ({
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-[#0A0A0A]">
-            {mode === 'signin' ? 'Sign in to StartOrigin' : 'Create your account'}
+            {mode === 'signin' ? 'Sign in' : 'Create your account'}
           </h1>
-          <p className="text-xs text-[#737373] mt-1.5">
-            {subtitle || 'Store your archive and share public frames.'}
-          </p>
+          {mode === 'signup' && (
+            <p className="text-xs text-[#737373] mt-1.5">
+              {subtitle || 'Store your archive and share public frames.'}
+            </p>
+          )}
         </div>
 
         {onClose && (
@@ -265,7 +289,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
               type="text"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
-              placeholder="alex or alex@example.com"
+              placeholder={identifierPlaceholder}
               autoComplete="username"
               className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl bg-[#F5F5F7] border border-transparent focus:bg-white focus:border-[#0A0A0A] outline-none text-base md:text-sm transition-colors"
             />
@@ -317,7 +341,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Alex Mercer"
+              placeholder={namePlaceholder}
               autoComplete="name"
               className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl bg-[#F5F5F7] border border-transparent focus:bg-white focus:border-[#0A0A0A] outline-none text-base md:text-sm transition-colors"
             />
@@ -331,7 +355,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="alexmercer"
+              placeholder={usernamePlaceholder}
               autoComplete="username"
               className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl bg-[#F5F5F7] border border-transparent focus:bg-white focus:border-[#0A0A0A] outline-none text-base md:text-sm transition-colors"
             />
@@ -348,7 +372,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="alex@example.com"
+              placeholder={emailPlaceholder}
               autoComplete="email"
               className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl bg-[#F5F5F7] border border-transparent focus:bg-white focus:border-[#0A0A0A] outline-none text-base md:text-sm transition-colors"
             />

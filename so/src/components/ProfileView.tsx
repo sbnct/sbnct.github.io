@@ -43,6 +43,9 @@ import { VerifiedBadge } from './VerifiedBadge';
 import { PWAInstallButton } from './PWAInstallButton';
 import { LikeButton } from './LikeButton';
 import { SlidingTabs } from './SlidingTabs';
+import { useTypingPlaceholder } from '../hooks/useTypingPlaceholder';
+
+const PROFILE_SEARCH_PLACEHOLDERS = ['alex', 'morgan', 'jordan'];
 import { ModalPortal } from './ModalPortal';
 import { fetchPhotoLikesMap, togglePhotoLike } from '../lib/likes';
 import {
@@ -148,6 +151,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [followingActionId, setFollowingActionId] = useState<string | null>(null);
   const [followingError, setFollowingError] = useState<string | null>(null);
   const [followingQuery, setFollowingQuery] = useState('');
+  const followingPlaceholder = useTypingPlaceholder(
+    followingQuery,
+    PROFILE_SEARCH_PLACEHOLDERS
+  );
 
   const loadProfileData = useCallback(async () => {
     if (!effectiveUserId) {
@@ -1616,7 +1623,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                         type="text"
                         value={followingQuery}
                         onChange={(e) => setFollowingQuery(e.target.value)}
-                        placeholder="Search..."
+                        placeholder={followingPlaceholder}
                         className="w-full min-h-[40px] pl-9 pr-3 py-2 rounded-xl bg-[#F5F5F7] border border-transparent focus:bg-white focus:border-[#0A0A0A] outline-none text-base md:text-xs"
                       />
                     </div>

@@ -6,6 +6,7 @@ import {
   Globe,
   Info,
   Link2,
+  LockKeyhole,
   RefreshCw,
   Users,
   X,
@@ -254,11 +255,15 @@ export const FeedView: React.FC<FeedViewProps> = ({
               }
               setMobileNotificationsOpen(true);
             }}
-            aria-label="Open notifications"
-            title="Notifications"
+            aria-label={currentUserId ? 'Open notifications' : 'Sign in to view notifications'}
+            title={currentUserId ? 'Notifications' : 'Sign in to view notifications'}
             className="md:hidden relative min-h-[40px] min-w-[40px] flex items-center justify-center rounded-full bg-[#F5F5F7] hover:bg-black/[0.08] text-[#0A0A0A] transition-colors shrink-0"
           >
-            <Bell className="w-4 h-4" strokeWidth={1.75} />
+            {currentUserId ? (
+              <Bell className="w-4 h-4" strokeWidth={1.75} />
+            ) : (
+              <LockKeyhole className="w-4 h-4" strokeWidth={1.75} />
+            )}
             {unreadNotificationsCount > 0 && (
               <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#0A0A0A] text-white text-[10px] font-semibold tabular-nums flex items-center justify-center border-2 border-white">
                 {unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount}

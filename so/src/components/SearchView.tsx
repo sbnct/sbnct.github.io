@@ -8,6 +8,9 @@ import { VerifiedBadge } from './VerifiedBadge';
 import { LikeButton } from './LikeButton';
 import { fetchPhotoLikesMap, togglePhotoLike } from '../lib/likes';
 import { SlidingTabs } from './SlidingTabs';
+import { useTypingPlaceholder } from '../hooks/useTypingPlaceholder';
+
+const SEARCH_PLACEHOLDERS = ['Alex', 'nature', 'street photography'];
 
 interface SearchViewProps {
   currentUserId: string | null;
@@ -34,6 +37,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [likeBusyIds, setLikeBusyIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
+  const searchPlaceholder = useTypingPlaceholder(query, SEARCH_PLACEHOLDERS);
 
   const isSearching = query.trim().length > 0;
 
@@ -211,7 +215,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search..."
+          placeholder={searchPlaceholder}
           className="w-full min-h-[48px] pl-11 pr-11 py-3 rounded-2xl bg-[#F5F5F7] border border-transparent focus:bg-white focus:border-[#0A0A0A] outline-none text-base md:text-sm transition-colors"
         />
         {query && (

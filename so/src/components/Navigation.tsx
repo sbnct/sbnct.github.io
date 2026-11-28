@@ -3,6 +3,7 @@ import {
   Bell,
   Compass,
   LayoutGrid,
+  LockKeyhole,
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
@@ -50,6 +51,8 @@ const MOBILE_NAV_ITEMS: {
   { id: 'profile', label: 'Profile', icon: User },
 ];
 
+const PROTECTED_TABS: NavTab[] = ['add', 'gallery', 'notifications', 'profile'];
+
 export const Navigation: React.FC<NavigationProps> = ({
   activeTab,
   onSelectTab,
@@ -91,6 +94,13 @@ export const Navigation: React.FC<NavigationProps> = ({
   }, [updateDesktopPill, sidebarHidden]);
 
   const activeMobileIndex = MOBILE_NAV_ITEMS.findIndex((i) => i.id === activeTab);
+  const selectTab = (tab: NavTab) => {
+    if (!isAuthenticated && PROTECTED_TABS.includes(tab)) {
+      onOpenAuth();
+      return;
+    }
+    onSelectTab(tab);
+  };
 
   return (
     <>
@@ -151,7 +161,8 @@ export const Navigation: React.FC<NavigationProps> = ({
               )}
 
               {DESKTOP_NAV_ITEMS.map((item) => {
-                const Icon = item.icon;
+                const isProtected = !isAuthenticated && PROTECTED_TABS.includes(item.id);
+                const Icon = isProtected ? LockKeyhole : item.icon;
                 const isActive = activeTab === item.id;
                 const isAdd = item.id === 'add';
 
@@ -162,7 +173,8 @@ export const Navigation: React.FC<NavigationProps> = ({
                       desktopBtnRefs.current[item.id] = el;
                     }}
                     type="button"
-                    onClick={() => onSelectTab(item.id)}
+                    onClick={() => selectTab(item.id)}
+                    aria-label={isProtected ? `Sign in to open ${item.label}` : item.label}
                     className={`relative z-10 w-full min-h-[44px] px-3.5 py-2.5 rounded-xl flex items-center gap-3.5 text-sm transition-colors duration-200 whitespace-nowrap shrink-0 ${
                       isActive
                         ? 'text-white font-medium'
@@ -185,7 +197,10 @@ export const Navigation: React.FC<NavigationProps> = ({
           <div className="space-y-3">
             <button
               type="button"
-              onClick={() => onSelectTab('notifications')}
+              onClick={() => selectTab('notifications')}
+              aria-label={
+                !isAuthenticated ? 'Sign in to view notifications' : 'Notifications'
+              }
               className={`w-full min-h-[44px] px-3.5 py-2.5 rounded-xl flex items-center justify-between gap-2 text-sm transition-colors duration-200 whitespace-nowrap shrink-0 ${
                 activeTab === 'notifications'
                   ? 'bg-[#0A0A0A] text-white font-medium'
@@ -193,10 +208,14 @@ export const Navigation: React.FC<NavigationProps> = ({
               }`}
             >
               <span className="flex items-center gap-3.5 min-w-0">
-                <Bell
-                  className="w-[18px] h-[18px] shrink-0"
-                  strokeWidth={activeTab === 'notifications' ? 2 : 1.75}
-                />
+                {!isAuthenticated ? (
+                  <LockKeyhole className="w-[18px] h-[18px] shrink-0" strokeWidth={1.75} />
+                ) : (
+                  <Bell
+                    className="w-[18px] h-[18px] shrink-0"
+                    strokeWidth={activeTab === 'notifications' ? 2 : 1.75}
+                  />
+                )}
                 <span>Notifications</span>
               </span>
 
@@ -296,7 +315,8 @@ export const Navigation: React.FC<NavigationProps> = ({
           )}
 
           {MOBILE_NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
+            const isProtected = !isAuthenticated && PROTECTED_TABS.includes(item.id);
+            const Icon = isProtected ? LockKeyhole : item.icon;
             const isActive = activeTab === item.id;
             const isAdd = item.id === 'add';
 
@@ -305,8 +325,12 @@ export const Navigation: React.FC<NavigationProps> = ({
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => onSelectTab(item.id)}
-                  aria-label="Add photo or collection"
+                  onClick={() => selectTab(item.id)}
+                  aria-label={
+                    isAuthenticated
+                      ? 'Add photo or collection'
+                      : 'Sign in to add photo or collection'
+                  }
                   className="flex flex-col items-center justify-center min-h-[44px]"
                 >
                   <span
@@ -316,7 +340,11 @@ export const Navigation: React.FC<NavigationProps> = ({
                         : 'bg-[#0A0A0A] text-white'
                     }`}
                   >
-                    <Plus className="w-5 h-5" strokeWidth={2} />
+                    {isProtected ? (
+                      <LockKeyhole className="w-5 h-5" strokeWidth={1.9} />
+                    ) : (
+                      <Plus className="w-5 h-5" strokeWidth={2} />
+                    )}
                   </span>
                 </button>
               );
@@ -326,8 +354,8 @@ export const Navigation: React.FC<NavigationProps> = ({
               <button
                 key={item.id}
                 type="button"
-                onClick={() => onSelectTab(item.id)}
-                aria-label={item.label}
+                onClick={() => selectTab(item.id)}
+                aria-label={isProtected ? `Sign in to open ${item.label}` : item.label}
                 className={`flex flex-col items-center justify-center min-h-[44px] transition-all duration-200 ${
                   isActive ? 'text-[#0A0A0A] scale-[1.03]' : 'text-[#737373]'
                 }`}

@@ -40,6 +40,9 @@ import { AddPhotoModal } from './AddPhotoModal';
 import { RulesModal } from './RulesModal';
 import { LimitedUsersPicker } from './LimitedUsersPicker';
 import { ModalPortal } from './ModalPortal';
+import { useTypingPlaceholder } from '../hooks/useTypingPlaceholder';
+
+const GALLERY_SEARCH_PLACEHOLDERS = ['summer', 'mountains', 'architecture'];
 
 interface GalleryViewProps {
   currentUserId: string | null;
@@ -97,6 +100,7 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
     collectionId: string;
   }>({ open: false, collectionId: '' });
   const [rulesOpen, setRulesOpen] = useState(false);
+  const searchPlaceholder = useTypingPlaceholder(tagQuery, GALLERY_SEARCH_PLACEHOLDERS);
 
   const loadGallery = useCallback(async () => {
     if (!currentUserId) return;
@@ -770,7 +774,7 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
             type="text"
             value={tagQuery}
             onChange={(e) => setTagQuery(e.target.value)}
-            placeholder="Search..."
+            placeholder={searchPlaceholder}
             className="w-full min-h-[44px] pl-10 pr-10 py-2.5 rounded-xl bg-[#F5F5F7] border border-transparent focus:bg-white focus:border-[#0A0A0A] outline-none text-base md:text-sm transition-colors"
           />
           {tagQuery && (
