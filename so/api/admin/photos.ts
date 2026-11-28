@@ -2,11 +2,14 @@ import {
   ApiRequestLike,
   ApiResponseLike,
   extractToken,
+  handleCors,
   getSupabaseAdmin,
   verifyAdminToken,
 } from '../_admin.js';
 
 export default async function handler(req: ApiRequestLike, res: ApiResponseLike) {
+  if (handleCors(req, res)) return;
+
   if (req.method !== 'GET') {
     res.status(405).json({ error: 'Method not allowed.' });
     return;

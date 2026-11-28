@@ -1,12 +1,15 @@
 import {
   ApiRequestLike,
   ApiResponseLike,
+  handleCors,
   parseJsonBody,
   safePasswordMatch,
   signAdminToken,
 } from '../_admin.js';
 
 export default async function handler(req: ApiRequestLike, res: ApiResponseLike) {
+  if (handleCors(req, res)) return;
+
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed.' });
     return;

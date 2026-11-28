@@ -73,7 +73,12 @@ interface CinemaState {
 
 function isAdminPath(): boolean {
   if (typeof window === 'undefined') return false;
-  return window.location.pathname.replace(/\/+$/, '') === '/admin';
+  const basePath = import.meta.env.BASE_URL.replace(/\/+$/, '') || '/';
+  const pathname = window.location.pathname.replace(/\/+$/, '') || '/';
+  const adminPath = `${basePath === '/' ? '' : basePath}/admin`;
+  const isAppRoot = pathname === basePath;
+  const hasAdminParam = new URLSearchParams(window.location.search).has('admin');
+  return pathname === adminPath || (isAppRoot && hasAdminParam);
 }
 
 function hasDeepLinkParam(): boolean {
@@ -371,7 +376,7 @@ function AppContent() {
   };
 
   const handleExitAdmin = () => {
-    window.history.pushState({}, '', '/');
+    window.history.pushState({}, '', import.meta.env.BASE_URL);
     setIsAdminRoute(false);
     setRefreshKey((k) => k + 1);
   };

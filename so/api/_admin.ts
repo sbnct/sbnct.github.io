@@ -10,11 +10,41 @@ export interface ApiRequestLike {
 }
 
 export interface ApiResponseLike {
+  setHeader: (name: string, value: string) => void;
   status: (code: number) => ApiResponseLike;
   json: (data: unknown) => void;
+  end: () => void;
 }
 
 const EPHEMERAL_FALLBACK_KEY = crypto.randomBytes(32).toString('hex');
+const ALLOWED_ORIGINS = new Set([
+  'https://sbnct.github.io',
+  'https://startorigin00.vercel.app',
+]);
+
+export function handleCors(req: ApiRequestLike, res: ApiResponseLike): boolean {
+  const rawOrigin = req.headers.origin;
+  const origin = Array.isArray(rawOrigin) ? rawOrigin[0] : rawOrigin;
+  const originAllowed = Boolean(origin && ALLOWED_ORIGINS.has(origin));
+
+  if (origin && originAllowed) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+    res.setHeader('Vary', 'Origin');
+  }
+
+  if (req.method === 'OPTIONS') {
+    if (originAllowed) {
+      res.status(204).end();
+    } else {
+      res.status(403).json({ error: 'Origin not allowed.' });
+    }
+    return true;
+  }
+
+  return false;
+}
 
 function getTokenSecret(): Buffer {
   const seed =

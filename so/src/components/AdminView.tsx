@@ -20,6 +20,11 @@ interface AdminViewProps {
 }
 
 const ADMIN_TOKEN_STORAGE_KEY = 'startorigin_admin_token';
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
+
+function apiUrl(path: string): string {
+  return `${API_BASE_URL}${path}`;
+}
 
 async function readJsonSafe(res: Response): Promise<Record<string, any>> {
   const text = await res.text();
@@ -70,7 +75,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
     setLoadingPhotos(true);
     setError(null);
     try {
-      const res = await fetch('/api/admin/photos', {
+      const res = await fetch(apiUrl('/api/admin/photos'), {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -108,7 +113,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
     }
     setAuthLoading(true);
     try {
-      const res = await fetch('/api/admin/login', {
+      const res = await fetch(apiUrl('/api/admin/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password }),
@@ -140,12 +145,15 @@ export const AdminView: React.FC<AdminViewProps> = ({
     setError(null);
     setNotice(null);
     try {
-      const res = await fetch(`/api/admin/photos/${encodeURIComponent(photo.id)}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const res = await fetch(
+        apiUrl(`/api/admin/photos/${encodeURIComponent(photo.id)}`),
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
       if (res.status === 401) {
         clearToken();
         return;
