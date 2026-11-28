@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { Check, ChevronDown, Plus } from 'lucide-react';
 
 export interface DropdownOption {
@@ -26,10 +26,44 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({
   createNewLabel = 'Create new',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [opensUp, setOpensUp] = useState(false);
+  const [maxMenuHeight, setMaxMenuHeight] = useState(256);
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const selectedOption = options.find((option) => option.value === value);
+  const menuHeight =
+    Math.min(224, options.length * 40 + 8) + (onCreateNew ? 50 : 0);
 
-  useEffect(() => {
+  const updatePlacement = useCallback(() => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+
+    const triggerRect = trigger.getBoundingClientRect();
+    let boundaryTop = 0;
+    let boundaryBottom = window.innerHeight;
+    let ancestor = rootRef.current?.parentElement;
+
+    while (ancestor && ancestor !== document.body) {
+      const { overflowY } = window.getComputedStyle(ancestor);
+      if (overflowY !== 'visible') {
+        const rect = ancestor.getBoundingClientRect();
+        boundaryTop = Math.max(boundaryTop, rect.top);
+        boundaryBottom = Math.min(boundaryBottom, rect.bottom);
+      }
+      ancestor = ancestor.parentElement;
+    }
+
+    const spaceAbove = Math.max(0, triggerRect.top - boundaryTop - 8);
+    const spaceBelow = Math.max(0, boundaryBottom - triggerRect.bottom - 8);
+    const nextOpensUp = spaceBelow < menuHeight && spaceAbove > spaceBelow;
+    const availableSpace = nextOpensUp ? spaceAbove : spaceBelow;
+    const nextMaxHeight = Math.max(72, Math.min(menuHeight, availableSpace));
+
+    setOpensUp(nextOpensUp);
+    setMaxMenuHeight(nextMaxHeight);
+  }, [menuHeight]);
+
+  useLayoutEffect(() => {
     if (!isOpen) return;
 
     const handlePointerDown = (event: PointerEvent) => {
@@ -41,20 +75,29 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({
       }
     };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsOpen(false);
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+        triggerRef.current?.focus();
+      }
     };
 
+    updatePlacement();
     document.addEventListener('pointerdown', handlePointerDown);
     document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('resize', updatePlacement);
+    window.addEventListener('scroll', updatePlacement, true);
     return () => {
       document.removeEventListener('pointerdown', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('resize', updatePlacement);
+      window.removeEventListener('scroll', updatePlacement, true);
     };
-  }, [isOpen]);
+  }, [isOpen, updatePlacement]);
 
   return (
     <div ref={rootRef} className="relative min-w-0">
       <button
+        ref={triggerRef}
         type="button"
         aria-label={ariaLabel}
         aria-haspopup="listbox"
@@ -73,11 +116,16 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-black/[0.1] bg-white shadow-xl">
+        <div
+          className={`absolute left-0 right-0 z-50 overflow-y-auto rounded-xl border border-black/[0.1] bg-white shadow-xl ${
+            opensUp ? 'bottom-full mb-1' : 'top-full mt-1'
+          }`}
+          style={{ maxHeight: `${maxMenuHeight}px` }}
+        >
           <div
             role="listbox"
             aria-label={`${ariaLabel} options`}
-            className="max-h-56 overflow-y-auto overscroll-contain p-1"
+            className="overscroll-contain p-1"
           >
             {options.map((option) => {
               const isSelected = option.value === value;
