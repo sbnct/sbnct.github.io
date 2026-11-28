@@ -286,12 +286,12 @@ export const Navigation: React.FC<NavigationProps> = ({
           {activeMobileIndex >= 0 && (
             <span
               aria-hidden="true"
-              className="absolute top-0 left-1 w-[calc((100%-0.5rem)/5)] flex justify-center pointer-events-none transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+              className="absolute bottom-1 left-1 w-[calc((100%-0.5rem)/5)] flex justify-center pointer-events-none transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
               style={{
                 transform: `translate3d(${activeMobileIndex * 100}%, 0, 0)`,
               }}
             >
-              <span className="w-8 h-[2px] rounded-full bg-[#0A0A0A]" />
+              <span className="w-1.5 h-1.5 rounded-full bg-[#0A0A0A]" />
             </span>
           )}
 
@@ -327,18 +327,12 @@ export const Navigation: React.FC<NavigationProps> = ({
                 key={item.id}
                 type="button"
                 onClick={() => onSelectTab(item.id)}
+                aria-label={item.label}
                 className={`flex flex-col items-center justify-center min-h-[44px] transition-all duration-200 ${
                   isActive ? 'text-[#0A0A0A] scale-[1.03]' : 'text-[#737373]'
                 }`}
               >
                 <Icon className="w-[21px] h-[21px]" strokeWidth={isActive ? 2.1 : 1.65} />
-                <span
-                  className={`text-[10px] mt-1 tracking-tight ${
-                    isActive ? 'font-semibold' : 'font-medium'
-                  }`}
-                >
-                  {item.label}
-                </span>
               </button>
             );
           })}

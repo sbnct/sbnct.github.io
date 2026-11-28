@@ -3,6 +3,8 @@ import { Layers, Trash2, Upload, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Collection, PhotoPrivacy } from '../types';
 import { sanitizeFilename } from '../lib/utils';
+import { CustomDropdown, DropdownOption } from './CustomDropdown';
+import { CreateCollectionModal } from './CreateCollectionModal';
 import {
   acceptUploadRules,
   formatCooldownDuration,
@@ -23,6 +25,7 @@ interface AddPhotoModalProps {
   defaultCollectionId: string;
   onClose: () => void;
   onSuccess: (uploadedCount: number, destinationLabel: string) => void;
+  onCollectionCreated: (collection: Collection) => void;
 }
 
 interface PendingPhotoItem {
@@ -36,6 +39,27 @@ interface PendingPhotoItem {
   tagsText: string;
 }
 
+type CollectionModalTarget =
+  | { kind: 'unified' }
+  | { kind: 'photo'; photoId: string }
+  | null;
+
+const PHOTO_PRIVACY_OPTIONS: DropdownOption[] = [
+  { value: 'public', label: 'Public (Feed & Profile)' },
+  { value: 'followers', label: 'Followers (Only followers)' },
+  { value: 'limited', label: 'Limited (Only chosen users)' },
+  { value: 'unlisted', label: 'By Link (Only via shared link)' },
+  { value: 'private', label: 'Private (Gallery only)' },
+];
+
+const COMPACT_PHOTO_PRIVACY_OPTIONS: DropdownOption[] = [
+  { value: 'public', label: 'Public' },
+  { value: 'followers', label: 'Followers' },
+  { value: 'limited', label: 'Limited' },
+  { value: 'unlisted', label: 'By Link' },
+  { value: 'private', label: 'Private' },
+];
+
 export const AddPhotoModal: React.FC<AddPhotoModalProps> = ({
   isOpen,
   currentUserId,
@@ -43,14 +67,17 @@ export const AddPhotoModal: React.FC<AddPhotoModalProps> = ({
   defaultCollectionId,
   onClose,
   onSuccess,
+  onCollectionCreated,
 }) => {
   const [items, setItems] = useState<PendingPhotoItem[]>([]);
-  const [useUnified, setUseUnified] = useState(true);
+  const [useUnified, setUseUnified] = useState(false);
   const [unifiedTitle, setUnifiedTitle] = useState('');
   const [unifiedPrivacy, setUnifiedPrivacy] = useState<PhotoPrivacy>('public');
   const [unifiedAllowedIds, setUnifiedAllowedIds] = useState<string[]>([]);
   const [unifiedCollectionId, setUnifiedCollectionId] = useState(defaultCollectionId);
   const [unifiedTags, setUnifiedTags] = useState('');
+  const [collectionModalTarget, setCollectionModalTarget] =
+    useState<CollectionModalTarget>(null);
   const [fileLimitNotice, setFileLimitNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +87,7 @@ export const AddPhotoModal: React.FC<AddPhotoModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setUnifiedCollectionId(defaultCollectionId);
+      setUseUnified(false);
       setError(null);
       setFileLimitNotice(null);
       syncUploadCooldownFromServer(currentUserId).then(setCooldownMs);
@@ -75,6 +103,10 @@ export const AddPhotoModal: React.FC<AddPhotoModalProps> = ({
   }, [isOpen, currentUserId]);
 
   useEffect(() => {
+    if (items.length < 2) setUseUnified(false);
+  }, [items.length]);
+
+  useEffect(() => {
     return () => {
       items.forEach((it) => URL.revokeObjectURL(it.previewUrl));
     };
@@ -84,11 +116,26 @@ export const AddPhotoModal: React.FC<AddPhotoModalProps> = ({
 
   const targetCollection = collections.find((c) => c.id === defaultCollectionId);
   const destinationName = targetCollection ? targetCollection.name : 'Unsorted';
+  const unifiedCollectionOptions: DropdownOption[] = [
+    { value: '', label: 'Unsorted (No Collection)' },
+    ...collections.map((collection) => ({
+      value: collection.id,
+      label: collection.name,
+    })),
+  ];
+  const photoCollectionOptions: DropdownOption[] = [
+    { value: '', label: 'Unsorted' },
+    ...collections.map((collection) => ({
+      value: collection.id,
+      label: collection.name,
+    })),
+  ];
 
   const handleClose = () => {
     if (submitting) return;
     items.forEach((it) => URL.revokeObjectURL(it.previewUrl));
     setItems([]);
+    setUseUnified(false);
     setUnifiedTitle('');
     setUnifiedTags('');
     setUnifiedAllowedIds([]);
@@ -346,15 +393,17 @@ export const AddPhotoModal: React.FC<AddPhotoModalProps> = ({
           </button>
         </div>
 
-        <SlidingTabs
-          value={useUnified ? 'unified' : 'per-photo'}
-          onChange={(v) => setUseUnified(v === 'unified')}
-          buttonClassName="min-h-[36px] px-3 py-1.5 text-xs"
-          items={[
-            { id: 'unified', label: 'Unified Settings' },
-            { id: 'per-photo', label: 'Per Photo' },
-          ]}
-        />
+        {items.length > 1 && (
+          <SlidingTabs
+            value={useUnified ? 'unified' : 'per-photo'}
+            onChange={(v) => setUseUnified(v === 'unified')}
+            buttonClassName="min-h-[36px] px-3 py-1.5 text-xs"
+            items={[
+              { id: 'unified', label: 'Unified Settings' },
+              { id: 'per-photo', label: 'Per Photo' },
+            ]}
+          />
+        )}
 
         {error && (
           <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-xs text-red-700">
@@ -433,35 +482,32 @@ export const AddPhotoModal: React.FC<AddPhotoModalProps> = ({
                 <label className="block text-xs font-medium text-[#0A0A0A] mb-1.5">
                   Privacy
                 </label>
-                <select
+                <CustomDropdown
                   value={unifiedPrivacy}
-                  onChange={(e) => setUnifiedPrivacy(e.target.value as PhotoPrivacy)}
-                  className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl bg-[#F5F5F7] border border-transparent focus:bg-white focus:border-[#0A0A0A] outline-none text-base md:text-sm"
-                >
-                  <option value="public">Public (Feed &amp; Profile)</option>
-                  <option value="followers">Followers (Only followers)</option>
-                  <option value="limited">Limited (Only chosen users)</option>
-                  <option value="unlisted">By Link (Only via shared link)</option>
-                  <option value="private">Private (Gallery only)</option>
-                </select>
+                  options={PHOTO_PRIVACY_OPTIONS}
+                  onChange={(value) =>
+                    setUnifiedPrivacy(value as PhotoPrivacy)
+                  }
+                  ariaLabel="Photo privacy"
+                  className="min-h-[44px] px-3.5 py-2.5 rounded-xl bg-[#F5F5F7] border border-transparent text-base md:text-sm"
+                />
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-[#0A0A0A] mb-1.5">
                   Destination
                 </label>
-                <select
+                <CustomDropdown
                   value={unifiedCollectionId}
-                  onChange={(e) => setUnifiedCollectionId(e.target.value)}
-                  className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl bg-[#F5F5F7] border border-transparent focus:bg-white focus:border-[#0A0A0A] outline-none text-base md:text-sm"
-                >
-                  <option value="">Unsorted (No Collection)</option>
-                  {collections.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                  options={unifiedCollectionOptions}
+                  onChange={setUnifiedCollectionId}
+                  ariaLabel="Photo collection"
+                  className="min-h-[44px] px-3.5 py-2.5 rounded-xl bg-[#F5F5F7] border border-transparent text-base md:text-sm"
+                  onCreateNew={() =>
+                    setCollectionModalTarget({ kind: 'unified' })
+                  }
+                  createNewLabel="Create new collection"
+                />
               </div>
             </div>
 
@@ -532,36 +578,34 @@ export const AddPhotoModal: React.FC<AddPhotoModalProps> = ({
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <select
+                    <CustomDropdown
                       value={item.privacy}
-                      onChange={(e) =>
+                      options={COMPACT_PHOTO_PRIVACY_OPTIONS}
+                      onChange={(value) =>
                         updatePendingItem(item.id, {
-                          privacy: e.target.value as PhotoPrivacy,
+                          privacy: value as PhotoPrivacy,
                         })
                       }
-                      className="min-h-[40px] px-3 py-2 rounded-xl bg-white border border-black/[0.08] text-base md:text-xs"
-                    >
-                      <option value="public">Public</option>
-                      <option value="followers">Followers</option>
-                      <option value="limited">Limited</option>
-                      <option value="unlisted">By Link</option>
-                      <option value="private">Private</option>
-                    </select>
+                      ariaLabel={`Privacy for ${item.title}`}
+                      className="min-h-[40px] px-3 py-2 rounded-xl bg-white border border-black/[0.08] text-xs"
+                    />
 
-                    <select
+                    <CustomDropdown
                       value={item.collectionId}
-                      onChange={(e) =>
-                        updatePendingItem(item.id, { collectionId: e.target.value })
+                      options={photoCollectionOptions}
+                      onChange={(value) =>
+                        updatePendingItem(item.id, { collectionId: value })
                       }
-                      className="min-h-[40px] px-3 py-2 rounded-xl bg-white border border-black/[0.08] text-base md:text-xs"
-                    >
-                      <option value="">Unsorted</option>
-                      {collections.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
+                      ariaLabel={`Collection for ${item.title}`}
+                      className="min-h-[40px] px-3 py-2 rounded-xl bg-white border border-black/[0.08] text-xs"
+                      onCreateNew={() =>
+                        setCollectionModalTarget({
+                          kind: 'photo',
+                          photoId: item.id,
+                        })
+                      }
+                      createNewLabel="Create new collection"
+                    />
 
                     <input
                       type="text"
@@ -636,6 +680,21 @@ export const AddPhotoModal: React.FC<AddPhotoModalProps> = ({
         }}
       />
     </div>
+    <CreateCollectionModal
+      isOpen={collectionModalTarget !== null}
+      currentUserId={currentUserId}
+      onClose={() => setCollectionModalTarget(null)}
+      onCreated={(collection) => {
+        onCollectionCreated(collection);
+        if (collectionModalTarget?.kind === 'unified') {
+          setUnifiedCollectionId(collection.id);
+        } else if (collectionModalTarget?.kind === 'photo') {
+          updatePendingItem(collectionModalTarget.photoId, {
+            collectionId: collection.id,
+          });
+        }
+      }}
+    />
     </ModalPortal>
   );
 };

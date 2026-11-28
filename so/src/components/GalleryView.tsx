@@ -1510,6 +1510,13 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
           collections={collections}
           defaultCollectionId={addModalState.collectionId}
           onClose={() => setAddModalState((prev) => ({ ...prev, open: false }))}
+          onCollectionCreated={(collection) => {
+            setCollections((previous) => [
+              collection,
+              ...previous.filter((item) => item.id !== collection.id),
+            ]);
+            onDataChanged();
+          }}
           onSuccess={(count, destinationLabel) => {
             loadGallery();
             onDataChanged();
